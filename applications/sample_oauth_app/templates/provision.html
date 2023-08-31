@@ -64,12 +64,22 @@
             <select id="client_authentication" name="client_authentication">
                 <option value="none">None</option>
                 <option value="ClientSecret" selected="selected">Client secret</option>
-                <option value="Keys" disabled="disabled">Public key / Private key</option>
+                <option value="Keys">Public key / Private key (Warning see notes in README.md)</option>
             </select>
         </div>
         <div class="controls" data-for-client-auth="ClientSecret">
             <label for="client_secret">Client secret:</label>
             <input type="text" id="client_secret" name="client_secret">
+        </div>
+        <div class="controls" data-for-client-auth="Keys">
+            <label for="private_key">Private Key:</label>
+            <textarea id="private_key" name="private_key" rows="10" disabled></textarea>
+            <input type="button" value="Generate Certs" id="certs_generate">
+        </div>
+        <div class="controls" data-for-client-auth="Keys">
+            <label for="public_key">Public Key:</label>
+            <textarea id="public_key" name="public_key" rows="10" disabled></textarea>
+            <input type="button" value="Copy Public Key" id="public_key_copy">
         </div>
         <div class="controls">
             <button type="submit">Submit</button>
@@ -153,6 +163,78 @@
                 }
                 return -1;
             }
+
+            // --- Certs Generate -------------------------------------------------------------
+            document.getElementById("certs_generate").onclick = async function() {
+                try {
+                    // Generate the RSA key pair
+                    let keyPair = await window.crypto.subtle.generateKey({
+                        name: "RSASSA-PKCS1-v1_5",
+                        modulusLength: 2048,
+                        publicExponent: new Uint8Array([1, 0, 1]),
+                        hash: "SHA-256"
+                    }, true, ["sign", "verify"]);
+
+                    // Create a random 'kid' value
+                    let kid = 'random_kid_' + Math.random().toString(36).substr(2);
+
+                    // Export the private key and add the 'kid' value
+                    let exportedPrivateKey = await window.crypto.subtle.exportKey("jwk", keyPair.privateKey);
+                    exportedPrivateKey.kid = kid;
+                    document.getElementById("private_key").value = JSON.stringify(exportedPrivateKey, null, 2);
+
+                    // Export the public key and add the 'kid' value
+                    let exportedPublicKey = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
+                    exportedPublicKey.kid = kid;
+                    document.getElementById("public_key").value = JSON.stringify(exportedPublicKey, null, 2);
+
+                    // Create JWT Claims
+                    let claims = {
+                        "iss": "your_client_id",
+                        "sub": "your_client_id",
+                        "aud": "your_token_endpoint",
+                        "exp": Math.floor(Date.now() / 1000) + (5 * 60) // +5 minutes
+                    };
+
+                    // Convert the claims to a compact JWT format (header.payload)
+                    let header = {
+                        "alg": "RS256",
+                        "kid": kid,
+                        "typ": "JWT"
+                    };
+
+                    let jwtCompact = btoa(JSON.stringify(header)) + "." + btoa(JSON.stringify(claims));
+
+                    // Sign the JWT with the private key
+                    let signature = await window.crypto.subtle.sign({
+                        name: "RSASSA-PKCS1-v1_5"
+                    }, keyPair.privateKey, new TextEncoder().encode(jwtCompact));
+
+                    // Convert the signature to Base64URL
+                    let signatureBase64Url = btoa(String.fromCharCode(...new Uint8Array(signature)))
+                        .replace('+', '-')
+                        .replace('/', '_')
+                        .replace(/=+$/, '');
+
+                    // Display the signed JWT
+                    document.getElementById("signed_jwt").value = jwtCompact + "." + signatureBase64Url;
+
+                } catch (error) {
+                    console.error("Error:", error);
+                }
+            };
+
+
+            // --- COPY PUBLIC KEY ------------------------------------------------------------
+            document.getElementById("public_key_copy").addEventListener("click", function() {
+                const publicKeyTextarea = document.getElementById("public_key");
+
+                // Select the content of the textarea
+                publicKeyTextarea.select();
+
+                // Copy the selected content
+                document.execCommand("copy");
+            });
         });
     </script>
 </body>
