@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Home - {{ title }}</title>
+    </head>
+    <body>
+        <h1>{{ title }}</h1>
+
+        {# === Header ==================================================== #}
+        {% if session.logged_in %}
+        <h2>Welcome, you are logged in!</h2>
+        {% else %}
+        <h2>You are logged out.</h2>
+        {% endif %}
+        <hr/>
+
+        {# === USER DETAILS =========================================== #}
+        <h2>User Details</h2>
+        <pre>{{ user_details | pprint }}</pre>
+        <hr/>
+
+        {# === SESSION DETAILS =========================================== #}
+        <h2>Session Details</h2>
+        <pre>{{ session | pprint }}</pre>
+        <hr/>
+
+        {# === LINKS ========================================================= #}
+        <h2>Links</h2>
+        <ul>
+            <li><a href="/provision">Add a provider</a>.</li>
+            {% if session.logged_in %}
+                <li><a href="/logout">Logout</a></li>
+            {% endif %}
+        </ul>
+
+        <table border="1">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Login Link</th>
+                <th>Type</th>
+                <th>Pkce</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for id, item in providers.items() %}
+            <tr>
+                <td>{{ id }}</td>
+                <td>{{ item.name }}</td>
+                <td><a href="/login/{{ id }}">Login</a></td>
+                <td>{{ item.client_auth.get_name() }}</td>
+                <td>{% if item.pkce_enabled %} Yes {% else %} No {% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <hr/>
+    </body>
+</html>

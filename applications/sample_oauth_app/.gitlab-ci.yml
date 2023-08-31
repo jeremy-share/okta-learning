@@ -1,0 +1,33 @@
+services:
+  - docker:dind
+
+stages:
+  - build
+
+variables:
+  SERVICE: "sample_oauth_app"
+
+build-master:
+  stage: build
+  retry: 0
+  image: docker:20
+  before_script:
+    - cd applications/${SERVICE}
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - export IMAGE_SUFFIX=${SERVICE}
+    - echo "IMAGE_SUFFIX=${IMAGE_SUFFIX}"
+    - export DOCKER_IMAGE=${CI_REGISTRY_IMAGE}/${IMAGE_SUFFIX}
+    - echo "DOCKER_IMAGE=${DOCKER_IMAGE}"
+  script:
+    - docker pull $DOCKER_IMAGE:stable || true
+    - >
+      docker build
+      --pull
+      --cache-from $DOCKER_IMAGE:stable
+      --tag $DOCKER_IMAGE:latest
+      --tag $DOCKER_IMAGE:stable
+      .
+    - docker push $DOCKER_IMAGE:latest
+    - docker push $DOCKER_IMAGE:stable
+  only:
+    - master

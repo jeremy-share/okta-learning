@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oauth Provision Form - {{ title }}</title>
+    <style>
+        .section .controls > input:first-child,
+        .section .controls > label:first-child,
+        .section .controls > select:first-child,
+        .section .controls > textarea:first-child {
+            display: inline-block;
+            width: 130px;
+            margin: 4px 4px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .section .controls > input:nth-child(2),
+        .section .controls > label:nth-child(2),
+        .section .controls > select:nth-child(2),
+        .section .controls > textarea:nth-child(2) {
+            width: 1000px;
+            margin: 4px 4px;
+        }
+    </style>
+</head>
+<body>
+<h1>{{ title }} - Oauth Provision Form</h1>
+
+<div class="section">
+    <form action="/provision" method="post">
+        <div class="controls">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="controls">
+            <label for="client_id">Client ID:</label>
+            <input type="text" id="client_id" name="client_id" required>
+        </div>
+        <div class="controls">
+            <label for="okta_domain">Okta Domain</label>
+            <input type="text" id="okta_domain" name="okta_domain">
+            <input type="button" value="Fill Okta Details" id="fill_okta">
+        </div>
+        <div class="controls">
+            <label for="authorize_uri">Authorize URI:</label>
+            <input type="text" id="authorize_uri" name="authorize_uri" required>
+        </div>
+        <div class="controls">
+            <label for="token_uri">Token URI:</label>
+            <input type="text" id="token_uri" name="token_uri" required>
+        </div>
+        <div class="controls">
+            <label for="redirect_uri">Redirect URI:</label>
+            <input type="text" id="redirect_uri" name="redirect_uri" required>
+        </div>
+        <div class="controls">
+            <input type="checkbox" name="pkce" id="pkce" checked="checked">
+            <label for="pkce">Require PKCE as additional verification</label>
+        </div>
+        <div class="controls">
+            <label for="client_authentication">Client Authentication:</label>
+            <select id="client_authentication" name="client_authentication">
+                <option value="none">None</option>
+                <option value="ClientSecret" selected="selected">Client secret</option>
+                <option value="Keys" disabled="disabled">Public key / Private key</option>
+            </select>
+        </div>
+        <div class="controls" data-for-client-auth="ClientSecret">
+            <label for="client_secret">Client secret:</label>
+            <input type="text" id="client_secret" name="client_secret">
+        </div>
+        <div class="controls">
+            <button type="submit">Submit</button>
+        </div>
+    </form>
+</div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+
+            // --- Select logic ---------------------------------------------------------------
+            const authSelect = document.getElementById('client_authentication');
+
+            function auth_selector() {
+                // Reset all inputs and textareas first
+                const allElements = document.querySelectorAll('[data-for-client-auth] input, [data-for-client-auth] textarea');
+                allElements.forEach(el => {
+                    el.setAttribute('readonly', true);
+                    el.setAttribute('disabled', true);
+                    el.removeAttribute('required');
+                });
+
+                // Now, enable and set required on the related input(s) and textarea(s) based on the selected value
+                const selectedValue = authSelect.value;
+                const relatedDivs = document.querySelectorAll(`[data-for-client-auth="${selectedValue}"]`);
+                relatedDivs.forEach(div => {
+                    const elements = div.querySelectorAll('input, textarea');
+                    elements.forEach(el => {
+                        el.removeAttribute('readonly');
+                        el.removeAttribute('disabled');
+                        el.setAttribute('required', true);
+                    });
+                });
+            }
+            auth_selector(); // Run at startup
+            authSelect.addEventListener('change', function () {
+              auth_selector();
+            })
+
+
+            // --- Fill with Okta Details -----------------------------------------------------
+            document.getElementById("fill_okta").onclick = function () {
+                let domain = document.getElementById("okta_domain").value.trim();
+
+                // Check if the URL contains the path and extract the client ID
+                const clientIdPattern = /admin\/app\/oidc_client\/instance\/([^\/]+)\//;
+                const match = domain.match(clientIdPattern);
+                if (match && match[1]) {
+                    document.getElementById("client_id").value = match[1];
+                }
+
+                // Remove everything after the third "/"
+                const thirdSlashIndex = nthIndexOf(domain, "/", 3);
+                if (thirdSlashIndex !== -1) {
+                    domain = domain.slice(0, thirdSlashIndex);
+                }
+
+                // Replace '-admin' with an empty string if present
+                if (domain.includes("-admin")) {
+                    domain = domain.replace("-admin", "");
+                }
+
+                document.getElementById("okta_domain").value = domain;
+                document.getElementById("name").value = "Okta";
+                document.getElementById("redirect_uri").value = "http://localhost:8080/callback";
+                document.getElementById("authorize_uri").value = domain + "/oauth2/v1/authorize";
+                document.getElementById("token_uri").value = domain + "/oauth2/v1/token";
+            };
+
+            function nthIndexOf(str, pattern, n) {
+                let count = 0;
+                for (let i = 0; i < str.length; i++) {
+                    if (str.charAt(i) === pattern) {
+                        count++;
+                        if (count === n) {
+                            return i;
+                        }
+                    }
+                }
+                return -1;
+            }
+        });
+    </script>
+</body>
+</html>
