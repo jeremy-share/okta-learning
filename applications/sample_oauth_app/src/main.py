@@ -14,12 +14,13 @@ from fastapi import FastAPI, Request, Form, Response, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.oauth_util import generate_pkce_code_verifier, generate_pkce_code_challenge
+from src.oauth_util import create_signed_jwt, generate_pkce_code_verifier, generate_pkce_code_challenge, \
+    generate_unique_jwt_id
 from src.providers import ProviderCollectionInMemory, Provider
 from src.session import SessionCollectionInMemory, SessionDetails, SessionCollection
 from src.provision_auth import ProvisionAuth
-from src.oauth_client_authentication import ClientAuthenticationNone, ClientAuthenticationClientSecret, \
-    ClientAuthentication
+from src.oauth_client_authentication import ClientAuthentication, ClientAuthenticationNone, \
+    ClientAuthenticationClientSecret, ClientAuthenticationKeys
 
 logger = logging.getLogger(__name__)
 
@@ -120,12 +121,16 @@ async def post_provision_details(
     pkce: bool = Form(False),
     client_authentication: str = Form("none"),
     client_secret: str = Form(""),
+    private_key: str = Form(""),
+    public_key: str = Form(""),
 ):
     logger.info(f"Provider added by {username=}")
     # Create a new instance with the form data
     client_auth = ClientAuthenticationNone()
     if client_authentication == "ClientSecret":
         client_auth = ClientAuthenticationClientSecret(client_secret=client_secret)
+    if client_authentication == "Keys":
+        client_auth = ClientAuthenticationKeys(public_key=public_key, private_key=private_key)
     provider = OauthProvider(
         name=name,
         client_id=client_id,
@@ -199,6 +204,20 @@ async def callback(request: Request, response: Response, provider_index=None):
 
     if isinstance(provider.client_auth, ClientAuthenticationClientSecret):
         token_data["client_secret"] = provider.client_auth.client_secret
+
+    if isinstance(provider.client_auth, ClientAuthenticationKeys):
+        private_key = json.loads(provider.client_auth.private_key)
+        client_assertion = create_signed_jwt(
+            client_id=provider.client_id,
+            token_endpoint=provider.token_uri,
+            private_key=private_key,
+            jwt_id=generate_unique_jwt_id()
+        )
+        token_data["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        token_data["client_assertion"] = client_assertion
+        token_headers["alg"] = private_key["alg"]
+        token_headers["kid"] = private_key["kid"]
+        token_headers["typ"] = "JWT"
 
     # Exchange the authorization code for an access token
     response = requests.post(provider.token_uri, data=token_data, headers=token_headers)

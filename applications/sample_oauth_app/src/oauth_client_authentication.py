@@ -27,3 +27,11 @@ class ClientAuthenticationClientSecret(ClientAuthentication):
     def get_name(self) -> str:
         return "client secret"
 
+
+@dataclass
+class ClientAuthenticationKeys(ClientAuthentication):
+    private_key: str
+    public_key: str
+
+    def get_name(self) -> str:
+        return "keys"
