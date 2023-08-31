@@ -1,0 +1,11 @@
+# Intermediate Gitlab CI yml to cd into the correct folder before running the sub .gitlab-ci.yml.
+# This is because of a limitation in Gitlab CI: by default, child pipelines are run in the context
+# of the repo root, not the subdirectory where the .gitlab-ci.yml is located.
+# https://gitlab.com/gitlab-org/gitlab/-/issues/346695
+# https://gitlab.com/gitlab-org/gitlab/-/issues/346695#note_1038004785
+
+before_script:
+  - "echo Running child pipeline in subdirectory: $CHILD_PIPELINE_EXECUTION_CONTEXT"
+  - cd $CHILD_PIPELINE_EXECUTION_CONTEXT
+
+include: $CHILD_PIPELINE_EXECUTION_CONTEXT/.gitlab-ci.yml

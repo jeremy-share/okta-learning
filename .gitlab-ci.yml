@@ -1,0 +1,18 @@
+services:
+  - docker:dind
+
+stages:
+  - child-pipelines
+
+sample_simple_app:
+  stage: child-pipelines
+  variables:
+    CHILD_PIPELINE_EXECUTION_CONTEXT: "applications/sample_simple_app"
+  trigger:
+    include: .sub-gitlab-ci.yml
+    strategy: depend
+  rules:
+    - if: $SERVICE == "all"
+    - if: $SERVICE == "sample_simple_app"
+    - changes:
+        - applications/sample_simple_app/**/*

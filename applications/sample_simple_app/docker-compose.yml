@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        PIPENV_INSTALL_ARG: "--dev"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - .:/app
+    user: "1000:1000"
+    environment:
+      RUN_ADDITION: "--reload"
+      RELOAD: "true"
