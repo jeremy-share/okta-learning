@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+bcrypt = "==4.0.1"
+fastapi = "==0.70.0"
+uvicorn = "==0.15.0"
+python-dotenv = "==1.0.0"
+python3-saml = "==1.15.0"
+jinja2 = "==3.1.2"
+pyyaml = "==6.0"
+python-multipart = "==0.0.6"
+
+[dev]
+
+[requires]
+python_version = "3.11"
