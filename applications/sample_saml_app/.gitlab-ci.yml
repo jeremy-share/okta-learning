@@ -5,7 +5,7 @@ stages:
   - build
 
 variables:
-  SERVICE: "sample_simple_app"
+  SERVICE: "sample_saml_app"
 
 build-develop:
   stage: build
