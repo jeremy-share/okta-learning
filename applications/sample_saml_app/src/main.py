@@ -211,6 +211,7 @@ async def get_provision_form(
 @app.post("/provision")
 async def post_provision_details(
     username: str = Depends(provision_auth.authenticate),
+    provider_id: UUID = Form(...),
     name: str = Form(...),
     strict: bool = Form(False),
     debug: bool = Form(False),
@@ -224,7 +225,7 @@ async def post_provision_details(
 ):
     logger.info(f"Provider added by {username=}")
     provider = SamlProvider(
-        id=0,
+        id=provider_id,
         name=name,
         strict=strict,
         debug=debug,
@@ -236,7 +237,7 @@ async def post_provision_details(
         idp_single_logout_service_url=idp_single_logout_service_url,
         idp_x509cert=idp_x509cert,
     )
-    await providers.add(provider)
+    await providers.set(provider_id, provider)
     return RedirectResponse(url="/?success=added_provider")
 
 
