@@ -72,7 +72,8 @@ class SessionCollectionInMemory(SessionPersistence):
         return expired_session_keys
 
     async def delete(self, key: str) -> None:
-        del self.sessions[key]
+        if key in self.sessions:
+            del self.sessions[key]
 
     async def update_last_access(self, key: str) -> None:
         self.sessions[key].last_access = unixtime()

@@ -1,5 +1,7 @@
 import os
 from os import getenv
+from uuid import UUID
+
 from fastapi import FastAPI, Request, HTTPException, Depends, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -50,7 +52,7 @@ class SamlProvider(Provider):
 
 @dataclass
 class SamlSessionDetails(SessionDetails):
-    provider_id: int | None = None
+    provider_id: UUID | None = None
     logged_in: bool = False
     saml_name_id: str = ""
     saml_name_id_format: str = ""
@@ -145,7 +147,7 @@ async def root(request: Request, response: Response):
 
 
 @app.get("/metadata/{provider_id}")
-async def metadata(request: Request, provider_id: int):
+async def metadata(request: Request, provider_id: UUID):
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     sp_settings = saml_auth.get_settings().get_sp_data()
@@ -155,16 +157,18 @@ async def metadata(request: Request, provider_id: int):
     return response
 
 
+@app.get("/login/{provider_id}")
 @app.get("/sso/{provider_id}")
-async def sso(request: Request, provider_id: int):
+async def sso(request: Request, provider_id: UUID):
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     return RedirectResponse(url=saml_auth.login())
     #     return RedirectResponse(url=get_saml_settings()["idp"]["singleSignOnService"]["url"])
 
 
+@app.get("/logout/{provider_id}")
 @app.get("/slo/{provider_id}")
-async def slo(request: Request, provider_id: int):
+async def slo(request: Request, provider_id: UUID):
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     saml_auth.logout()
@@ -175,7 +179,7 @@ async def slo(request: Request, provider_id: int):
 
 @app.get("/acs/{provider_id}")
 @app.post("/acs/{provider_id}")
-async def acs(request: Request, response: Response, provider_id: int):
+async def acs(request: Request, response: Response, provider_id: UUID):
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     saml_auth.process_response()
@@ -200,7 +204,7 @@ async def get_provision_form(
     logger.info(f"Provision accessed by {username=}")
     return templates.TemplateResponse(
         "provision.html",
-        {"request": request, "provider_next_id": await providers.get_next_id()},
+        {"request": request},
     )
 
 

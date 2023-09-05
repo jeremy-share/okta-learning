@@ -23,27 +23,24 @@
             width: 1000px;
             margin: 4px 4px;
         }
+        input[readonly] {
+            background-color: lightgrey;
+        }
     </style>
 </head>
 <body>
     <h1>{{ title }} - SAML Provision Form</h1>
     <h2>IDP Details (Estimate)</h2>
-    <div class="section idp_details">
-        <div class="controls">
-            <label for="sp_single_sign_on">Single sign-on URL:</label>
-            <input type="text" readonly="readonly" id="sp_single_sign_on" name="sp_single_sign_on" value="{sp_url_prefix}/acs/{{ provider_next_id }}">
-            <button data-copy-id="sp_single_sign_on">Copy</button>
-        </div>
-        <div class="controls">
-            <label for="sp_audience_url">Audience URI (SP Entity ID):</label>
-            <input type="text" readonly="readonly" id="sp_audience_url" name="sp_audience_url" value="{sp_url_prefix}/metadata/{{ provider_next_id }}">
-            <button data-copy-id="sp_audience_url">Copy</button>
-        </div>
-    </div>
 
     <h2>New Details</h2>
     <div class="section">
         <form action="/provision" method="post">
+            <div class="controls">
+                <label for="provider_id">provider_id:</label>
+                <input type="text" id="provider_id" name="provider_id" value="" required pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}" title="Provider UUID v4 format expected">
+                <input type="button" value="provider_id generate" id="provider_id_generate">
+            </div>
+
             <div class="controls">
                 <label for="name">Name:</label>
                 <input type="text" id="name" name="name" required>
@@ -63,6 +60,16 @@
                 <input type="text" id="sp_url" name="sp_url" required>
                 <input type="button" value="SP ULR Detect" id="sp_url_detect">
             </div>
+            <div class="controls sp">
+                <label for="sp_single_sign_on">Single sign-on URL:</label>
+                <input type="text" readonly="readonly" id="sp_single_sign_on" name="sp_single_sign_on" data-value-template="{sp_url_prefix}/acs/{provider_id}" value="">
+                <button data-copy-id="sp_single_sign_on">Copy</button>
+            </div>
+            <div class="controls sp">
+                <label for="sp_audience_url">Audience URI (SP Entity ID):</label>
+                <input type="text" readonly="readonly" id="sp_audience_url" name="sp_audience_url" data-value-template="{sp_url_prefix}/metadata/{provider_id}" value="">
+                <button data-copy-id="sp_audience_url">Copy</button>
+            </div>
             <div class="controls">
                 <label for="sp_private_key">sp_private_key:</label>
                 <textarea id="sp_private_key" name="sp_private_key" rows="10" ></textarea>
@@ -71,7 +78,7 @@
             <div class="controls">
                 <label for="sp_x509cert">sp_x509cert:</label>
                 <textarea id="sp_x509cert" name="sp_x509cert" rows="10" ></textarea>
-                <input type="button" value="Copy sp_x509cert" id="sp_x509cert_copy">
+                <input type="button" value="Copy sp_x509cert" id="sp_x509cert_copy" data-copy-id="sp_x509cert">
             </div>
 
             <h2>Identity Provider (IDP) Details</h2>
@@ -100,43 +107,88 @@
 
 
     <script>
-        // Function to retrieve the current site's protocol and domain name
+        // Function to retrieve the current site's protocol, domain name and port
         function getBaseURL() {
-            return window.location.protocol + '//' + window.location.hostname;
+            let port = window.location.port ? ':' + window.location.port : '';
+            return window.location.protocol + '//' + window.location.hostname + port;
+        }
+
+        // Format all SP templates
+        function formatSpDetails() {
+            document.querySelectorAll('.sp input[data-value-template]').forEach(input => {
+                input.value = input.getAttribute('data-value-template')
+                    .replace("{sp_url_prefix}", document.getElementById('sp_url').value)
+                    .replace("{provider_id}", document.getElementById('provider_id').value)
+            });
+        }
+
+        // Sets the service providers URL automatically
+        function setSpUrlAutomatically() {
+            document.getElementById('sp_url').value = getBaseURL();
+        }
+
+        // Generates a UUID (probably wrong)
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // Sets the provider_id to a generated value
+        function setGeneratedProviderId() {
+            document.querySelector('#provider_id').value = generateUUID();
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // --- REPLACE THE IDP DETAILS DOMAIN ---------------------------
-            // Get the container element
-            const container = document.querySelector('.idp_details');
+            // Startup actions
+            setGeneratedProviderId();
+            setSpUrlAutomatically();
+            formatSpDetails();
 
-            if(container) {
-                // Get all input elements within the container
-                const inputs = container.querySelectorAll('input');
+            // --- ON PROVIDER ID CHANGE ------------------------------------
+            document.querySelector("#provider_id").addEventListener("input", function(event) {
+                formatSpDetails();
+            });
 
-                // Replace {sp_url_prefix} in input values
-                inputs.forEach(input => {
-                    if (input.value.includes('{sp_url_prefix}')) {
-                        input.value = input.value.replace('{sp_url_prefix}', getBaseURL());
-                    }
-                });
-            }
+            // --- ON SP URL CHANGE -----------------------------------------
+            document.querySelector("#sp_url").addEventListener("input", function(event) {
+                formatSpDetails();
+            });
 
-            // --- SP DETECT URL --------------------------------------------
+            // --- ON CLICK OF THE SP PROVIDER DETECT BUTTON ----------------
             document.getElementById('sp_url_detect').addEventListener('click', function() {
-                document.getElementById('sp_url').value = getBaseURL();
+                setSpUrlAutomatically();
+                formatSpDetails();
+            });
+
+            // --- ON CLICK PROVIDER ID GENERATE ----------------------------
+            document.querySelector('#provider_id_generate').addEventListener('click', () => {
+                setGeneratedProviderId();
+                formatSpDetails();
             });
 
             // --- SP x509cert COPY -----------------------------------------
-            document.getElementById('sp_x509cert_copy').addEventListener('click', function() {
-                const textArea = document.getElementById("sp_x509cert");
+            document.querySelectorAll('button[data-copy-id], input[type="button"][data-copy-id]').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const copyId = button.getAttribute('data-copy-id');
+                    const targetElement = document.querySelector(`#${copyId}`);
 
-                // Select the content of the textarea
-                textArea.select();
-
-                // Copy the selected content
-                document.execCommand("copy");
+                    if (targetElement) {
+                        navigator.clipboard.writeText(targetElement.value)
+                            .then(() => {
+                                console.log('Text copied to clipboard');
+                            })
+                            .catch(err => {
+                                console.error('Error copying text to clipboard', err);
+                            });
+                    } else {
+                        console.error(`Element with id "${copyId}" not found`);
+                    }
+                });
             });
+
 
             // --- SP Certs Generate ----------------------------------------
             async function generateKeyPair() {
