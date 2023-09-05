@@ -50,7 +50,7 @@
                 <label for="strict">SAML Strict?</label>
             </div>
             <div class="controls">
-                <input type="checkbox" name="debug" id="debug">
+                <input type="checkbox" name="debug" id="debug" checked="checked">
                 <label for="debug">SAML Debug?</label>
             </div>
 
@@ -72,18 +72,18 @@
             </div>
             <div class="controls">
                 <label for="sp_private_key">sp_private_key:</label>
-                <textarea id="sp_private_key" name="sp_private_key" rows="10" ></textarea>
+                <textarea id="sp_private_key" name="sp_private_key" rows="10"></textarea>
                 <input type="button" value="SP Certs Generate" id="sp_certs_generate">
             </div>
             <div class="controls">
                 <label for="sp_x509cert">sp_x509cert:</label>
-                <textarea id="sp_x509cert" name="sp_x509cert" rows="10" ></textarea>
+                <textarea id="sp_x509cert" name="sp_x509cert" rows="10"></textarea>
                 <input type="button" value="Copy sp_x509cert" id="sp_x509cert_copy" data-copy-id="sp_x509cert">
             </div>
 
             <h2>Identity Provider (IDP) Details</h2>
             <div class="controls">
-                <label for="idp_entity_id">idp_entity_id:</label>
+                <label for="idp_entity_id">idp_entity_id: (Metadata URL)</label>
                 <input type="text" id="idp_entity_id" name="idp_entity_id" required>
             </div>
             <div class="controls">

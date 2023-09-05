@@ -118,9 +118,7 @@ templates.env.filters["pprint"] = lambda value: pprint.pformat(value)
 templates.env.globals["title"] = "Sample SAML APP"
 
 
-async def init_saml_auth(
-    request: Request, provider: SamlProvider
-) -> OneLogin_Saml2_Auth:
+async def init_saml_auth(request: Request, provider: SamlProvider) -> OneLogin_Saml2_Auth:
     details = {
         "https": "on" if request.url.scheme == "https" else "off",
         "http_host": request.client.host,
@@ -163,18 +161,24 @@ async def sso(request: Request, provider_id: UUID):
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     return RedirectResponse(url=saml_auth.login())
-    #     return RedirectResponse(url=get_saml_settings()["idp"]["singleSignOnService"]["url"])
 
 
-@app.get("/logout/{provider_id}")
 @app.get("/slo/{provider_id}")
 async def slo(request: Request, provider_id: UUID):
+    await sessions.delete_request_session(request)
     provider = await providers.get_by_id(provider_id)
     saml_auth = await init_saml_auth(request, provider)
     saml_auth.logout()
-    await sessions.delete_request_session(request)
     return RedirectResponse(url=saml_auth.logout(return_to="/"))
-    # return RedirectResponse(url=get_saml_settings()["idp"]["singleSignOnService"]["url"])
+
+
+@app.get("/logout")
+async def logout(request: Request, response: Response):
+    session: SamlSessionDetails = await sessions.get_request_session(request, response)
+    if session.provider_id is not None:
+        return RedirectResponse(url=f"/slo/{session.provider_id}")
+    await sessions.delete_request_session(request)
+    return RedirectResponse(url="/")
 
 
 @app.get("/acs/{provider_id}")
@@ -184,17 +188,25 @@ async def acs(request: Request, response: Response, provider_id: UUID):
     saml_auth = await init_saml_auth(request, provider)
     saml_auth.process_response()
     errors = saml_auth.get_errors()
-    if not errors:
-        if saml_auth.is_authenticated():
-            await sessions.get_request_session(request, response)
-            return RedirectResponse("/?loginSuccess=true")
-        else:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-    else:
+    if errors:
         logger.error(f"SAML authentication error: {', '.join(errors)}")
-        raise HTTPException(
-            status_code=400, detail=f"SAML authentication error: {', '.join(errors)}"
-        )
+        raise HTTPException(status_code=400, detail=f"SAML authentication error: {', '.join(errors)}")
+
+    if not saml_auth.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    session: SamlSessionDetails = await sessions.get_request_session(request, response)
+    session.provider_id = provider_id
+    session.logged_in = True
+    session.saml_name_id = saml_auth.get_nameid()
+    session.saml_name_id_format = saml_auth.get_nameid_format(),
+    session.saml_name_id_nq = saml_auth.get_nameid_nq(),
+    session.saml_name_id_spnq = saml_auth.get_nameid_spnq(),
+    session.saml_session_index = saml_auth.get_session_index(),
+    session.saml_session_expiration = saml_auth.get_session_expiration(),
+    session.saml_attributes = saml_auth.get_attributes(),
+    session.saml_attributes_friendly_names = saml_auth.get_friendlyname_attributes()
+    return RedirectResponse("/?loginSuccess=true")
 
 
 @app.get("/provision")
@@ -202,10 +214,7 @@ async def get_provision_form(
     request: Request, username: str = Depends(provision_auth.authenticate)
 ):
     logger.info(f"Provision accessed by {username=}")
-    return templates.TemplateResponse(
-        "provision.html",
-        {"request": request},
-    )
+    return templates.TemplateResponse("provision.html", {"request": request})
 
 
 @app.post("/provision")
@@ -215,13 +224,13 @@ async def post_provision_details(
     name: str = Form(...),
     strict: bool = Form(False),
     debug: bool = Form(False),
-    sp_url: str = Form(False),
-    sp_x509cert: str = Form(False),
-    sp_private_key: str = Form(False),
-    idp_entity_id: str = Form(False),
-    idp_single_sign_on_service_url: str = Form(False),
-    idp_single_logout_service_url: str = Form(False),
-    idp_x509cert: str = Form(False),
+    sp_url: str = Form(...),
+    sp_x509cert: str = Form(""),
+    sp_private_key: str = Form(""),
+    idp_entity_id: str = Form(...),
+    idp_single_sign_on_service_url: str = Form(...),
+    idp_single_logout_service_url: str = Form(...),
+    idp_x509cert: str = Form(...),
 ):
     logger.info(f"Provider added by {username=}")
     provider = SamlProvider(
@@ -239,12 +248,6 @@ async def post_provision_details(
     )
     await providers.set(provider_id, provider)
     return RedirectResponse(url="/?success=added_provider")
-
-
-@app.get("/logout")
-async def logout(request: Request):
-    await sessions.delete_request_session(request)
-    return RedirectResponse(url="/?success=logged-out")
 
 
 async def start_app():
