@@ -17,6 +17,19 @@ sample_oauth_app:
     - changes:
         - applications/sample_oauth_app/**/*
 
+sample_saml_app:
+  stage: child-pipelines
+  variables:
+    CHILD_PIPELINE_EXECUTION_CONTEXT: "applications/sample_saml_app"
+  trigger:
+    include: .sub-gitlab-ci.yml
+    strategy: depend
+  rules:
+    - if: $SERVICE == "all"
+    - if: $SERVICE == "sample_saml_app"
+    - changes:
+        - applications/sample_saml_app/**/*
+
 sample_simple_app:
   stage: child-pipelines
   variables:
