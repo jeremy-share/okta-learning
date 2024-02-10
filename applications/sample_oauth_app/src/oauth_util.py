@@ -9,6 +9,7 @@ import jwt
 # from cryptography.hazmat.primitives.asymmetric import rsa
 # from cryptography.hazmat.primitives import serialization
 import base64
+from jwt.api_jwk import PyJWK
 
 
 # def base64url_to_int(value):
@@ -42,9 +43,9 @@ import base64
 #     return pem_key
 
 
-def jwk_to_pem(jwk_dict: dict):
-    key = jwk.JWK(**jwk_dict)
-    return key.export_to_pem(private_key=True, password=None).decode('utf-8')
+# def jwk_to_pem(jwk_dict: dict):
+#     key = jwk.JWK(**jwk_dict)
+#     return key.export_to_pem(private_key=True, password=None).decode('utf-8')
 
 
 def generate_unique_jwt_id() -> str:
@@ -53,23 +54,28 @@ def generate_unique_jwt_id() -> str:
 
 def create_signed_jwt(client_id: str, token_endpoint: str, private_key: dict, jwt_id: str) -> str:
     # Convert JWK to PEM
-    private_key_pem = jwk_to_pem(private_key)
+    cert = PyJWK.from_dict(private_key)
 
     issue_at = int(time.time())
 
     # This function constructs a JWT and signs it using the private key.
-    claims = {
-        "iss": client_id,
-        "sub": client_id,
-        "aud": token_endpoint,
-        "exp": issue_at + 600,  # Token validity, e.g., 5 minutes
-        "iat": issue_at,
-        "jti": jwt_id,
-        "kid": private_key["kid"]
-    }
 
     # Sign the JWT with the RSA private key
-    signed_jwt = jwt.encode(claims, private_key_pem, algorithm=private_key["alg"])
+    signed_jwt = jwt.encode(
+        payload={
+            "iss": client_id,
+            "sub": client_id,
+            "aud": token_endpoint,
+            "iat": issue_at,
+            "exp": issue_at + 600,  # Token validity, e.g., 5 minutes
+            "jti": jwt_id
+        },
+        key=cert.key,
+        algorithm=private_key["alg"],
+        headers={
+            "kid": private_key["kid"]
+        }
+    )
 
     return signed_jwt
 

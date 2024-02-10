@@ -194,11 +194,9 @@ async def callback(request: Request, response: Response, provider_index=None):
     token_data = {
         "redirect_uri": provider.redirect_uri,
         "client_id": provider.client_id,
-        "code": request_parameters["code"],
+        "code": request_parameters.get("code", ""),
         "grant_type": "authorization_code"
     }
-    token_headers = {}
-
     if provider.pkce_enabled:
         token_data["code_verifier"] = session.oauth_code_verifier
 
@@ -215,12 +213,9 @@ async def callback(request: Request, response: Response, provider_index=None):
         )
         token_data["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
         token_data["client_assertion"] = client_assertion
-        token_headers["alg"] = private_key["alg"]
-        token_headers["kid"] = private_key["kid"]
-        token_headers["typ"] = "JWT"
 
     # Exchange the authorization code for an access token
-    response = requests.post(provider.token_uri, data=token_data, headers=token_headers)
+    response = requests.post(provider.token_uri, data=token_data)
     response.raise_for_status()
     token_details = response.json()
     session.access_token = token_details["access_token"]
@@ -235,7 +230,7 @@ async def logout(request: Request):
 
 
 async def start_app():
-    asyncio.create_task(sessions.clear_expired_sessions())
+    await asyncio.create_task(sessions.clear_expired_sessions())
     config = uvicorn.Config("src.main:app", host=RUN_HOST, port=int(RUN_PORT), log_level=LOG_LEVEL, reload=RELOAD)
     server = uvicorn.Server(config)
     await server.serve()
