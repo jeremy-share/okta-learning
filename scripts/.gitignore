@@ -1,0 +1,6 @@
+.env
+private-key.json
+terraform.tfstate
+terraform.tfstate*
+.terraform.lock.hcl
+.terraform
