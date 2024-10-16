@@ -13,7 +13,7 @@ def main():
         "OKTA_ORG_NAME",
         "OKTA_BASE_URL",
         "OKTA_CLIENT_ID",
-        "OKTA_CLIENT_SECRET",
+        #"OKTA_CLIENT_SECRET",
         "OKTA_USERNAME",
         "OKTA_PASSWORD",
     ]
@@ -41,7 +41,7 @@ def main():
     token_payload = {
         "grant_type": "password",
         "client_id": config['OKTA_CLIENT_ID'],
-        "client_secret": config['OKTA_CLIENT_SECRET'],
+        # "client_secret": config['OKTA_CLIENT_SECRET'],
         "username": config['OKTA_USERNAME'],
         "password": config['OKTA_PASSWORD'],
         "scope": "openid okta.apps.read",  # Scopes for access to apps
@@ -68,15 +68,17 @@ def main():
 
     # Make the request to get the list of apps
     apps_response = requests.get(apps_url, headers=headers)
+    apps_response.raise_for_status()
 
-    if apps_response.status_code == 200:
+    try:
         apps_data = apps_response.json()
         print("List of Applications:")
         for app in apps_data:
             print(f"- {app['label']}")
-    else:
-        print("Failed to retrieve apps list.")
-        print(apps_response.json())
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        print(f"Response Text: {apps_response.text}")
+
 
 if __name__ == "__main__":
     main()
